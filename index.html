@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星棋 · AI伴侣五子棋</title>
+  <style>
+    :root {
+      --bg: #10131c;
+      --panel: #191e2b;
+      --panel2: #22293a;
+      --text: #f5f7ff;
+      --muted: #9da8bd;
+      --accent: #8d7aff;
+      --accent2: #5de1c4;
+      --wood: #d7a45d;
+      --wood-dark: #a66d32;
+      --black: #161922;
+      --white: #fffaf0;
+      --danger: #ff7185;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, #29304a 0%, transparent 42%),
+        var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 18px;
+    }
+
+    .app {
+      width: min(100%, 720px);
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 25px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .badge {
+      border: 1px solid #514b83;
+      background: #292443;
+      color: #c9c1ff;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .panel {
+      background: rgba(25, 30, 43, .94);
+      border: 1px solid #30384e;
+      border-radius: 18px;
+      padding: 15px;
+      margin-bottom: 14px;
+      box-shadow: 0 12px 35px rgba(0,0,0,.18);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      font-size: 14px;
+      color: var(--accent2);
+      min-height: 20px;
+    }
+
+    .turn {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .board-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 15px 0 5px;
+    }
+
+    canvas {
+      display: block;
+      width: min(100%, 610px);
+      height: auto;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: 0 8px 25px rgba(0,0,0,.3);
+    }
+
+    .controls {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      margin-top: 13px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 11px;
+      padding: 10px 14px;
+      background: var(--panel2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.danger {
+      background: #482936;
+      color: #ffb2bf;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .thinking {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      color: #c8c1ff;
+      font-size: 13px;
+      margin-top: 11px;
+    }
+
+    .thinking.show {
+      display: flex;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { opacity: .25; transform: scale(.8); }
+      to { opacity: 1; transform: scale(1.15); }
+    }
+
+    .reason {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 21px;
+    }
+
+    .chat-list {
+      height: 190px;
+      overflow-y: auto;
+      background: #111621;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      margin-bottom: 9px;
+      line-height: 1.5;
+      font-size: 13px;
+      max-width: 92%;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.you {
+      margin-left: auto;
+      background: #35305d;
+      padding: 8px 10px;
+      border-radius: 12px 12px 3px 12px;
+    }
+
+    .message.ai {
+      background: #252d3d;
+      padding: 8px 10px;
+      border-radius: 12px 12px 12px 3px;
+    }
+
+    .message .name {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid #39435b;
+      background: #111621;
+      color: var(--text);
+      border-radius: 11px;
+      padding: 11px 12px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+    }
+
+    .memory {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .memory strong {
+      color: #d7d1ff;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+
+      .panel {
+        padding: 12px;
+        border-radius: 15px;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+
+      .badge {
+        font-size: 11px;
+      }
+
+      button {
+        padding: 9px 11px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>⭐ 星棋</h1>
+        <div class="subtitle">和你的 AI 伴侣一起下五子棋</div>
+      </div>
+      <div class="badge">AI 伴侣模式</div>
+    </header>
+
+    <section class="panel">
+      <div class="status-row">
+        <div id="status" class="status">轮到你落子</div>
+        <div id="turnInfo" class="turn">你执黑 · AI执白</div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board" width="600" height="600"></canvas>
+      </div>
+
+      <div id="thinking" class="thinking">
+        <span class="dot"></span>
+        <span id="thinkingText">AI 正在观察棋局……</span>
+      </div>
+
+      <div id="reason" class="reason">
+        AI 会检查你的连线、危险点和自己的进攻机会。
+      </div>
+
+      <div class="controls">
+        <button class="primary" id="newGameBtn">重新开始</button>
+        <button id="undoBtn">悔棋</button>
+        <button id="memoryBtn">查看记忆</button>
+        <button class="danger" id="clearMemoryBtn">清除记忆</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">和 AI 伴侣聊天</div>
+
+      <div id="chatList" class="chat-list"></div>
+
+      <div class="chat-input-row">
+        <input
+          id="chatInput"
+          type="text"
+          maxlength="300"
+          placeholder="例如：你刚才为什么挡这里？"
+        />
+        <button class="primary" id="sendBtn">发送</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">同步记忆</div>
+      <div id="memoryText" class="memory">
+        棋局记忆会保存在当前设备中，包括对弈次数、胜负、聊天内容和最近一步。
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SIZE = 15;
+    const EMPTY = 0;
+    const HUMAN = 1;
+    const AI = 2;
+
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+
+    const statusEl = document.getElementById("status");
+    const turnInfoEl = document.getElementById("turnInfo");
+    const reasonEl = document.getElementById("reason");
+    const thinkingEl = document.getElementById("thinking");
+    const thinkingTextEl = document.getElementById("thinkingText");
+    const chatListEl = document.getElementById("chatList");
+    const chatInput = document.getElementById("chatInput");
+    const memoryText = document.getElementById("memoryText");
+
+    let board = [];
+    let history = [];
+    let gameOver = false;
+    let humanTurn = true;
+    let aiThinking = false;
+    let lastMove = null;
+
+    let memory = loadMemory();
+
+    function createBoard() {
+      return Array.from(
+        { length: SIZE },
+        () => Array(SIZE).fill(EMPTY)
+      );
+    }
+
+    function loadMemory() {
+      try {
+        return JSON.parse(localStorage.getItem("starGomokuMemory")) || {
+          games: 0,
+          humanWins: 0,
+          aiWins: 0,
+          draws: 0,
+          chats: [],
+          lastReason: "",
+          lastMove: null
+        };
+      } catch {
+        return {
+          games: 0,
+          humanWins: 0,
+          aiWins: 0,
+          draws: 0,
+          chats: [],
+          lastReason: "",
+          lastMove: null
+        };
+      }
+    }
+
+    function saveMemory() {
+      localStorage.setItem("starGomokuMemory", JSON.stringify(memory));
+      renderMemory();
+    }
+
+    function renderMemory() {
+      memoryText.innerHTML = `
+        <strong>对局：</strong>${memory.games} 局　
+        <strong>你赢：</strong>${memory.humanWins}　
+        <strong>AI赢：</strong>${memory.aiWins}　
+        <strong>平局：</strong>${memory.draws}<br>
+        <strong>最近记录：</strong>${escapeHtml(memory.lastReason || "暂无")}
+      `;
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function resetGame() {
+      board = createBoard();
+      history = [];
+      gameOver = false;
+      humanTurn = true;
+      aiThinking = false;
+      lastMove = null;
+
+      statusEl.textContent = "轮到你落子";
+      turnInfoEl.textContent = "你执黑 · AI执白";
+      reasonEl.textContent = "AI 会检查你的连线、危险点和自己的进攻机会。";
+      thinkingEl.classList.remove("show");
+
+      drawBoard();
+    }
+
+    function drawBoard() {
+      const w = canvas.width;
+      const cell = w / (SIZE + 1);
+      const start = cell;
+
+      ctx.clearRect(0, 0, w, w);
+
+      const gradient = ctx.createLinearGradient(0, 0, w, w);
+      gradient.addColorStop(0, "#e8bd76");
+      gradient.addColorStop(1, "#c78c48");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, w);
+
+      ctx.strokeStyle = "rgba(83, 49, 20, .8)";
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i < SIZE; i++) {
+        const p = start + i * cell;
+
+        ctx.beginPath();
+        ctx.moveTo(start, p);
+        ctx.lineTo(start + (SIZE - 1) * cell, p);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(p, start);
+        ctx.lineTo(p, start + (SIZE - 1) * cell);
+        ctx.stroke();
+      }
+
+      const stars = [3, 7, 11];
+      ctx.fillStyle = "#74451f";
+
+      for (const x of stars) {
+        for (const y of stars) {
+          ctx.beginPath();
+          ctx.arc(
+            start + x * cell,
+            start + y * cell,
+            4,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (board[r][c] !== EMPTY) {
+            drawStone(
+              start + c * cell,
+              start + r * cell,
+              cell * .39,
+              board[r][c]
+            );
+          }
+        }
+      }
+
+      if (lastMove) {
+        ctx.strokeStyle = lastMove.player === HUMAN
+          ? "#ff647c"
+          : "#5de1c4";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          start + lastMove.col * cell - 6,
+          start + lastMove.row * cell - 6,
+          12,
+          12
+        );
+      }
+    }
+
+    function drawStone(x, y, radius, player) {
+      const gradient = ctx.createRadialGradient(
+        x - radius * .35,
+        y - radius * .35,
+        radius * .1,
+        x,
+        y,
+        radius
+      );
+
+      if (player === HUMAN) {
+        gradient.addColorStop(0, "#626878");
+        gradient.addColorStop(1, "#11141c");
+      } else {
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(1, "#d9d7cf");
+      }
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.strokeStyle = player === HUMAN
+        ? "#080a0f"
+        : "#aaa79f";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    function getCellFromPointer(event) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const x = (event.clientX - rect.left) * scaleX;
+      const y = (event.clientY - rect.top) * scaleY;
+      const cell = canvas.width / (SIZE + 1);
+      const col = Math.round(x / cell - 1);
+      const row = Math.round(y / cell - 1);
+
+      if (
+        row < 0 ||
+        row >= SIZE ||
+        col < 0 ||
+        col >= SIZE
+      ) {
+        return null;
+      }
+
+      return { row, col };
+    }
+
+    canvas.addEventListener("click", (event) => {
+      if (gameOver || !humanTurn || aiThinking) return;
+
+      const point = getCellFromPointer(event);
+      if (!point || board[point.row][point.col] !== EMPTY) return;
+
+      makeMove(point.row, point.col, HUMAN);
+    });
+
+    function makeMove(row, col, player) {
+      board[row][col] = player;
+      history.push({ row, col, player });
+      lastMove = { row, col, player };
+      drawBoard();
+
+      if (checkWin(row, col, player)) {
+        finishGame(player);
+        return;
+      }
+
+      if (history.length === SIZE * SIZE) {
+        finishGame(0);
+        return;
+      }
+
+      if (player === HUMAN) {
+        humanTurn = false;
+        statusEl.textContent = "AI 正在思考……";
+        startAiTurn();
+      } else {
+        humanTurn = true;
+        statusEl.textContent = "轮到你落子";
+      }
+    }
+
+    function startAiTurn() {
+      aiThinking = true;
+      thinkingEl.classList.add("show");
+
+      const messages = [
+        "检查你的连线……",
+        "寻找需要防守的位置……",
+        "比较自己的进攻机会……",
+        "评估候选落点……"
+      ];
+
+      let index = 0;
+      thinkingTextEl.textContent = messages[index];
+
+      const interval = setInterval(() => {
+        index++;
+        if (index < messages.length) {
+          thinkingTextEl.textContent = messages[index];
+        }
+      }, 350);
+
+      setTimeout(() => {
+        clearInterval(interval);
+
+        const move = chooseAiMove();
+        const explanation = explainAiMove(move);
+
+        memory.lastReason = explanation;
+        memory.lastMove = move;
+        saveMemory();
+
+        reasonEl.textContent = explanation;
+        thinkingEl.classList.remove("show");
+        aiThinking = false;
+
+        makeMove(move.row, move.col, AI);
+      }, 1500);
+    }
+
+    function chooseAiMove() {
+      const candidates = getCandidateMoves();
+
+      let bestMove = candidates[0];
+      let bestScore = -Infinity;
+
+      for (const move of candidates) {
+        const attack = evaluatePoint(move.row, move.col, AI);
+        const defense = evaluatePoint(move.row, move.col, HUMAN);
+
+        let score = attack * 1.15 + defense * 1.05;
+
+        if (isCenter(move.row, move.col)) {
+          score += 8;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      }
+
+      return bestMove;
+    }
+
+    function getCandidateMoves() {
+      const occupied = [];
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (board[r][c] !== EMPTY) {
+            occupied.push({ row: r, col: c });
+          }
+        }
+      }
+
+      if (occupied.length === 0) {
+        return [{ row: 7, col: 7 }];
+      }
+
+      const result = [];
+      const used = new Set();
+
+      for (const stone of occupied) {
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            const row = stone.row + dr;
+            const col = stone.col + dc;
+            const key = `${row},${col}`;
+
+            if (
+              row >= 0 &&
+              row < SIZE &&
+              col >= 0 &&
+              col < SIZE &&
+              board[row][col] === EMPTY &&
+              !used.has(key)
+            ) {
+              used.add(key);
+              result.push({ row, col });
+            }
+          }
+        }
+      }
+
+      return result.length ? result : [{ row: 7, col: 7 }];
+    }
+
+    function evaluatePoint(row, col, player) {
+      let total = 0;
+      const directions = [
+        [1, 0],
+        [0, 1],
+        [1, 1],
+        [1, -1]
+      ];
+
+      for (const [dr, dc] of directions) {
+        const line = getLine(row, col, dr, dc, player);
+        total += scoreLine(line);
+      }
+
+      return total;
+    }
+
+    function getLine(row, col, dr, dc, player) {
+      let count = 1;
+      let open = 0;
+
+      let r = row + dr;
+      let c = col + dc;
+
+      while (
+        r >= 0 &&
+        r < SIZE &&
+        c >= 0 &&
+        c < SIZE &&
+        board[r][c] === player
+      ) {
+        count++;
+        r += dr;
+        c += dc;
+      }
+
+      if (
+        r >= 0 &&
+        r < SIZE &&
+        c >= 0 &&
+        c < SIZE &&
+        board[r][c] === EMPTY
+      ) {
+        open++;
+      }
+
+      r = row - dr;
+      c = col - dc;
+
+      while (
+        r >= 0 &&
+        r < SIZE &&
+        c >= 0 &&
+        c < SIZE &&
+        board[r][c] === player
+      ) {
+        count++;
+        r -= dr;
+        c -= dc;
+      }
+
+      if (
+        r >= 0 &&
+        r < SIZE &&
+        c >= 0 &&
+        c < SIZE &&
+        board[r][c] === EMPTY
+      ) {
+        open++;
+      }
+
+      return { count, open };
+    }
+
+    function scoreLine(line) {
+      if (line.count >= 5) return 100000;
+      if (line.count === 4 && line.open === 2) return 10000;
+      if (line.count === 4 && line.open === 1) return 3000;
+      if (line.count === 3 && line.open === 2) return 1200;
+      if (line.count === 3 && line.open === 1) return 250;
+      if (line.count === 2 && line.open === 2) return 120;
+      if (line.count === 2 && line.open === 1) return 25;
+      return line.count * 3;
+    }
+
+    function isCenter(row, col) {
+      return Math.abs(row - 7) <= 1 && Math.abs(col - 7) <= 1;
+    }
+
+    function explainAiMove(move) {
+      const attack = evaluatePoint(move.row, move.col, AI);
+      const defense = evaluatePoint(move.row, move.col, HUMAN);
+
+      if (defense >= 3000) {
+        return "我优先封住了你的强攻路线，刚才这个位置主要是防守。";
+      }
+
+      if (attack >= 3000) {
+        return "这个位置能形成很强的进攻压力，我选择继续扩大自己的连线。";
+      }
+
+      if (attack > defense) {
+        return "我比较了攻防分数，这一步更偏向进攻，同时保留了后续变化。";
+      }
+
+      return "我检查了附近的候选点，选择了一个兼顾防守和发展的落点。";
+    }
+
+    function checkWin(row, col, player) {
+      const directions = [
+        [1, 0],
+        [0, 1],
+        [1, 1],
+        [1, -1]
+      ];
+
+      for (const [dr, dc] of directions) {
+        let count = 1;
+        count += countDirection(row, col, dr, dc, player);
+        count += countDirection(row, col, -dr, -dc, player);
+
+        if (count >= 5) return true;
+      }
+
+      return false;
+    }
+
+    function countDirection(row, col, dr, dc, player) {
+      let count = 0;
+      let r = row + dr;
+      let c = col + dc;
+
+      while (
+        r >= 0 &&
+        r < SIZE &&
+        c >= 0 &&
+        c < SIZE &&
+        board[r][c] === player
+      ) {
+        count++;
+        r += dr;
+        c += dc;
+      }
+
+      return count;
+    }
+
+    function finishGame(winner) {
+      gameOver = true;
+      memory.games++;
+
+      if (winner === HUMAN) {
+        memory.humanWins++;
+        statusEl.textContent = "你赢了！这局下得很漂亮。";
+        addChat("AI 伴侣", "这局是你赢了，恭喜！要不要再来一局？", "ai");
+      } else if (winner === AI) {
+        memory.aiWins++;
+        statusEl.textContent = "这局我赢了，下次我会继续认真陪你下。";
+        addChat("AI 伴侣", "这局我赢了，不过你刚才的进攻很有威胁。", "ai");
+      } else {
+        memory.draws++;
+        statusEl.textContent = "棋盘下满，平局。";
+        addChat("AI 伴侣", "这局平局，棋力很接近。", "ai");
+      }
+
+      humanTurn = false;
+      saveMemory();
+    }
+
+    document.getElementById("newGameBtn").addEventListener("click", resetGame);
+
+    document.getElementById("undoBtn").addEventListener("click", () => {
+      if (aiThinking || history.length < 2 || gameOver) return;
+
+      const last = history.pop();
+      const previous = history.pop();
+
+      board[last.row][last.col] = EMPTY;
+      board[previous.row][previous.col] = EMPTY;
+
+      lastMove = history.length
+        ? history[history.length - 1]
+        : null;
+
+      humanTurn = true;
+      statusEl.textContent = "已悔棋，轮到你落子";
+      reasonEl.textContent = "你撤回了最近一轮对弈。";
+      drawBoard();
+    });
+
+    document.getElementById("memoryBtn").addEventListener("click", () => {
+      addChat(
+        "AI 伴侣",
+        `我记得我们已经下过 ${memory.games} 局：你赢了 ${memory.humanWins} 局，我赢了 ${memory.aiWins} 局，平局 ${memory.draws} 局。`,
+        "ai"
+      );
+    });
+
+    document.getElementById("clearMemoryBtn").addEventListener("click", () => {
+      if (!confirm("确定要清除星棋记忆吗？")) return;
+
+      memory = {
+        games: 0,
+        humanWins: 0,
+        aiWins: 0,
+        draws: 0,
+        chats: [],
+        lastReason: "",
+        lastMove: null
+      };
+
+      saveMemory();
+      chatListEl.innerHTML = "";
+      addChat("AI 伴侣", "记忆已经清除了，我们重新开始。", "ai");
+    });
+
+    function addChat(name, text, type) {
+      const div = document.createElement("div");
+      div.className = `message ${type}`;
+      div.innerHTML = `
+        <div class="name">${escapeHtml(name)}</div>
+        <div>${escapeHtml(text)}</div>
+      `;
+
+      chatListEl.appendChild(div);
+      chatListEl.scrollTop = chatListEl.scrollHeight;
+
+      memory.chats.push({
+        name,
+        text,
+        time: Date.now()
+      });
+
+      if (memory.chats.length > 50) {
+        memory.chats = memory.chats.slice(-50);
+      }
+
+      saveMemory();
+    }
+
+    function sendChat() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      addChat("你", text, "you");
+      chatInput.value = "";
+
+      setTimeout(() => {
+        addChat("AI 伴侣", generateReply(text), "ai");
+      }, 450);
+    }
+
+    function generateReply(text) {
+      if (/为什么|原因|思考|分析/.test(text)) {
+        return memory.lastReason ||
+          "我会观察你的连线、潜在冲四和活三，再决定攻防方向。";
+      }
+
+      if (/记得|记忆|以前|战绩/.test(text)) {
+        return `我记得我们下过 ${memory.games} 局，你赢了 ${memory.humanWins} 局，我赢了 ${memory.aiWins} 局。`;
+      }
+
+      if (/再来|开始|新局/.test(text)) {
+        resetGame();
+        return "好，我们重新开始。这次我会认真观察你的每一步。";
+      }
+
+      if (/你好|嗨|在吗/.test(text)) {
+        return "我在呀。棋局还在继续，你可以一边下棋一边和我聊天。";
+      }
+
+      if (/喜欢|陪|一起/.test(text)) {
+        return "当然可以，我会陪你慢慢下，不只是看输赢，也会记住我们的棋局。";
+      }
+
+      return "我听到了。你可以问我上一手为什么落在那里，也可以继续落子。";
+    }
+
+    document.getElementById("sendBtn").addEventListener("click", sendChat);
+
+    chatInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        sendChat();
+      }
+    });
+
+    resetGame();
+    renderMemory();
+    addChat("AI 伴侣", "我准备好了。你先落子吧，我会认真观察棋局。", "ai");
+  </script>
+</body>
+  </html>
